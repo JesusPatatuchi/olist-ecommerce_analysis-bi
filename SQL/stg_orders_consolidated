@@ -1,4 +1,4 @@
---First creaqte a table with all the required data for a RFM analysis
+--First create a table with all the required data for a RFM analysis
 CREATE OR REPLACE TABLE `ers-490608.olist_ecommerce.stg_orders_consolidated` AS
 SELECT
   o.order_id,
