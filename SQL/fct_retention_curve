@@ -1,0 +1,51 @@
+CREATE OR REPLACE TABLE `ers-490608.olist_ecommerce.fct_retention_cohorts` AS
+--1st CTE to obtain the Month ofthe first order of the customers
+WITH first_customer_order AS (
+  SELECT  
+    customer_unique_id,
+    DATE_TRUNC(MIN(purchase_date), MONTH) AS cohort_month
+  FROM 
+    `ers-490608.olist_ecommerce.stg_orders_consolidated`
+  GROUP BY
+    customer_unique_id
+),
+--2nd to determine the time between customer purchases
+user_activities AS (
+  SELECT DISTINCT
+    t.customer_unique_id,
+    f.cohort_month,
+    DATE_TRUNC(t.purchase_date, MONTH) AS activity_month,
+    DATE_DIFF(DATE_TRUNC(t.purchase_date, MONTH), f.cohort_month, MONTH) AS month_number
+  FROM
+    `ers-490608.olist_ecommerce.stg_orders_consolidated` t
+  JOIN
+    first_customer_order f ON t.customer_unique_id = f.customer_unique_id
+),
+--3rd to add how many customers are from each cohort
+cohort_size AS (
+  SELECT
+    cohort_month,
+    COUNT(DISTINCT customer_unique_id) AS total_cohort_users
+  FROM
+    first_customer_order
+  GROUP BY
+    cohort_month
+)  
+-- Now extracted all cohort data and obtained the retention ratio
+SELECT
+  a.cohort_month,
+  c.total_cohort_users AS cohort_size,
+  a.month_number,
+  COUNT(DISTINCT a.customer_unique_id) AS active_users,
+  ROUND(COUNT(DISTINCT a.customer_unique_id) / c.total_cohort_users, 4) AS retention_ratio
+FROM
+  user_activities a
+JOIN
+  cohort_size c ON a.cohort_month = c.cohort_month
+GROUP BY
+  a.cohort_month,
+  c.total_cohort_users,
+  a.month_number
+ORDER BY
+  a.cohort_month,
+  a.month_number;
